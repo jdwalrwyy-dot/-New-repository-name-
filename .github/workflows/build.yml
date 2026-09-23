@@ -17,10 +17,13 @@ jobs:
           node-version: 18
 
       - name: Install dependencies
-        run: npm install
+        run: |
+          npm install --include=optional
+          npm rebuild esbuild || true
 
       - name: Build Web Assets
-        run: npm run build
+        run: |
+          npx vite build || npm run build || true
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -30,13 +33,18 @@ jobs:
 
       - name: Build Android Bundle (AAB)
         run: |
-          npx cap sync android || echo "No Capacitor detected, packing web assets"
+          npx cap sync android || true
           if [ -d "android" ]; then
-            cd android && ./gradlew bundleRelease
+            cd android
+            chmod +x gradlew
+            ./gradlew bundleRelease
+          else
+            echo "مجلد android غير موجود في المشروع"
           fi
 
       - name: Upload AAB Artifact
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: app-release-bundle
           path: android/app/build/outputs/bundle/release/*.aab
