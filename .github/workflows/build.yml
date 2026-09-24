@@ -31,20 +31,25 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Build Android Bundle (AAB)
+      - name: Add Android & Build Signed AAB
         run: |
+          npm install @capacitor/core @capacitor/cli @capacitor/android || true
+          npx cap add android || true
           npx cap sync android || true
+
           if [ -d "android" ]; then
             cd android
+            keytool -genkey -v -keystore release.keystore -alias my-key-alias -keyalg RSA -keysize 2048 -validity 10000 -storepass mypassword123 -keypass mypassword123 -dname "CN=App, OU=Dev, O=Company, L=City, S=State, C=EG"
             chmod +x gradlew
             ./gradlew bundleRelease
+            jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 -keystore release.keystore -storepass mypassword123 -keypass mypassword123 app/build/outputs/bundle/release/*.aab my-key-alias
           else
-            echo "مجلد android غير موجود في المشروع"
+            echo "فشل مجلد أندرويد"
+            exit 1
           fi
 
-      - name: Upload AAB Artifact
+      - name: Upload Signed AAB
         uses: actions/upload-artifact@v4
-        if: always()
         with:
-          name: app-release-bundle
+          name: app-google-play-bundle
           path: android/app/build/outputs/bundle/release/*.aab
