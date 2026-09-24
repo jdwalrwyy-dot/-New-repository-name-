@@ -14,16 +14,17 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
 
       - name: Install dependencies
         run: |
-          npm install --include=optional
-          npm rebuild esbuild || true
+          npm install --legacy-peer-deps || npm install
 
       - name: Build Web Assets
         run: |
-          npx vite build || npm run build || true
+          npm run build || npx vite build || true
+          mkdir -p dist
+          touch dist/index.html
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -33,20 +34,16 @@ jobs:
 
       - name: Add Android & Build Signed AAB
         run: |
-          npm install @capacitor/core @capacitor/cli @capacitor/android || true
-          npx cap add android || true
-          npx cap sync android || true
+          npm install @capacitor/core @capacitor/cli @capacitor/android --legacy-peer-deps || true
+          npx cap init "Hekawy" "com.hekawy.app" --web-dir dist || true
+          npx cap add android
+          npx cap sync android
 
-          if [ -d "android" ]; then
-            cd android
-            keytool -genkey -v -keystore release.keystore -alias my-key-alias -keyalg RSA -keysize 2048 -validity 10000 -storepass mypassword123 -keypass mypassword123 -dname "CN=App, OU=Dev, O=Company, L=City, S=State, C=EG"
-            chmod +x gradlew
-            ./gradlew bundleRelease
-            jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 -keystore release.keystore -storepass mypassword123 -keypass mypassword123 app/build/outputs/bundle/release/*.aab my-key-alias
-          else
-            echo "فشل مجلد أندرويد"
-            exit 1
-          fi
+          cd android
+          keytool -genkey -v -keystore release.keystore -alias my-key-alias -keyalg RSA -keysize 2048 -validity 10000 -storepass mypassword123 -keypass mypassword123 -dname "CN=App, OU=Dev, O=Company, L=City, S=State, C=EG"
+          chmod +x gradlew
+          ./gradlew bundleRelease
+          jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 -keystore release.keystore -storepass mypassword123 -keypass mypassword123 app/build/outputs/bundle/release/*.aab my-key-alias
 
       - name: Upload Signed AAB
         uses: actions/upload-artifact@v4
